@@ -96,18 +96,42 @@ loading and testing scripts.
 class ProstateDataset(Dataset):
 
     def __init__(self, image_dir, label_dir, downsample_factor=0.5):
-        self.image_paths = sorted(glob.glob(os.path.join(image_dir, '*.nii.gz')))
-        self.label_paths = sorted(glob.glob(os.path.join(label_dir, '*.nii.gz')))
-        self.downsample_factor = downsample_factor
+        self.image_paths = sorted(glob.glob(os.path.join(image_dir, '*.pt')))
+        self.label_paths = sorted(glob.glob(os.path.join(label_dir, '*.pt')))
 
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
-        image = load_data_3D([self.image_paths[idx]], normImage=True, downsample_factor=self.downsample_factor)[0]
-        label = load_data_3D([self.label_paths[idx]], dtype=np.uint8, categorical=False, downsample_factor=self.downsample_factor)[0]
-
-        image_tensor = torch.from_numpy(image).float().unsqueeze(0)
-        label_tensor = torch.from_numpy(label).float().unsqueeze(0)
+        image_tensor = torch.load(self.image_paths[idx])
+        label_tensor = torch.load(self.label_paths[idx])
 
         return image_tensor, label_tensor
+
+def preprocess():
+    IMAGE_DIR = "semantic_labels_anon"
+    LABEL_DIR = "semantic_MRs_anon"
+
+    PROCESSED_IMAGE_DIR = "processed_data/images"
+    PROCESSED_LABEL_DIR = "processed_data/labels"
+    os.makedirs(PROCESSED_IMAGE_DIR, exist_ok=True)
+    os.makedirs(PROCESSED_LABEL_DIR, exist_ok=True)
+
+    DOWNSAMPLE_FACTOR = 0.5
+
+    image_paths = sorted(glob.glob(os.path.join(IMAGE_DIR, '*.nii.gz')))
+    label_paths = sorted(glob.glob(os.path.join(LABEL_DIR, '*.nii.gz')))
+
+    for i, (img_path, lbl_path) in enumerate(tqdm(zip(image_paths, label_paths), total=len(image_paths))):
+        image_array = load_data_3D([img_path], normImage=True, downsample_factor=DOWNSAMPLE_FACTOR)[0]
+        label_array = load_data_3D([lbl_path], dtype=np.uint8, categorical=False, downsample_factor=DOWNSAMPLE_FACTOR)[0]
+
+        image_tensor = torch.from_numpy(image_array).float().unsqueeze(0)
+        label_tensor = torch.from_numpy(label_array).float().unsqueeze(0)
+
+        base_filename = os.path.basename(img_path).replace('.nii.gz', '.pt')
+        torch.save(image_tensor, os.path.join(PROCESSED_IMAGE_DIR, base_filename))
+        torch.save(label_tensor, os.path.join(PROCESSED_LABEL_DIR, base_filename))
+
+if __name__ == '__main__':
+    preprocess()
