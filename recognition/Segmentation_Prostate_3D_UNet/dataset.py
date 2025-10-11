@@ -91,7 +91,7 @@ loading and testing scripts.
         return images, affines
     else:
         return images
-    
+
 
 class ProstateDataset(Dataset):
 
@@ -105,14 +105,9 @@ class ProstateDataset(Dataset):
 
     def __getitem__(self, idx):
         image = load_data_3D([self.image_paths[idx]], normImage=True, downsample_factor=self.downsample_factor)[0]
-        label = load_data_3D([self.label_paths[idx]], dtype=np.uint8, categorical=True, downsample_factor=self.downsample_factor)[0]
-        
-        image_tensor = torch.from_numpy(image).float()
-        label_tensor = torch.from_numpy(label).float()
-        
-        image_tensor = image_tensor.unsqueeze(0)
-        label_tensor = label_tensor.permute(3, 0, 1, 2)
+        label = load_data_3D([self.label_paths[idx]], dtype=np.uint8, categorical=False, downsample_factor=self.downsample_factor)[0]
+
+        image_tensor = torch.from_numpy(image).float().unsqueeze(0)
+        label_tensor = torch.from_numpy(label).float().unsqueeze(0)
 
         return image_tensor, label_tensor
-
-    

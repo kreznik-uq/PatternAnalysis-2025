@@ -5,13 +5,14 @@ from modules import UNet3D
 from torch.utils.data import DataLoader
 from dataset import ProstateDataset
 
+
 if __name__ == '__main__':
 
     dataset = ProstateDataset(image_dir="semantic_labels_anon", label_dir="semantic_MRs_anon", downsample_factor=0.5)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=2)
 
     # Code reference: https://www.codegenes.net/blog/3d-unet-pytorch/
-    model = UNet3D()
+    model = UNet3D(in_channels=1, out_channels=1)
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
