@@ -13,12 +13,35 @@ from torch.amp import GradScaler, autocast
 def dice_coefficient(pred, target):
     pred_probs = torch.sigmoid(pred)
     pred_mask = (pred_probs > 0.5).float()
-
     intersection = (pred_mask * target).sum()
     union = pred_mask.sum() + target.sum()
     
     dice = (2. * intersection) / (union + 1e-6)
     return dice.item()
+
+class DiceLoss(nn.Module):
+    def __init__(self):
+        super(DiceLoss, self).__init__()
+
+    def forward(self, pred, target, smooth=1):
+
+        pred = torch.sigmoid(pred)
+        intersection = (pred * target).sum(dim=(2, 3, 4))
+        union = pred.sum(dim=(2, 3, 4)) + target.sum(dim=(2, 3, 4))
+        dice = (2. * intersection + smooth) / (union + smooth)
+
+        return 1 - dice.mean()
+
+class CombinedLoss(nn.Module):
+    def __init__(self):
+        super(CombinedLoss, self).__init__()
+        self.bce = nn.BCEWithLogitsLoss()
+        self.dice = DiceLoss()
+
+    def forward(self, pred, targets):   
+        bce = self.bce(pred,targets)
+        dice = self.dice(pred,targets)
+        return bce * 0.5 + dice * 0.5
 
 # Code reference: https://medium.com/@fernandopalominocobo/
 # mastering-u-net-a-step-by-step-guide-to-segmentation-from-scratch-with-pytorch-6a17c5916114
@@ -39,7 +62,7 @@ def validate(model, loader, criterion, device):
             with autocast(device_type="cuda"):
                 y_pred = model(inputs)
                 loss = criterion(y_pred, labels)
-            
+                
             dc = dice_coefficient(y_pred, labels)
             
             val_running_loss += loss.item()
@@ -59,12 +82,12 @@ if __name__ == '__main__':
     train_size = dataset_size - val_size
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
 
-    dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=2)
-    validationloader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=2)
+    dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=8, pin_memory=True)
+    validationloader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=8, pin_memory=True)
 
     # Code reference: https://www.codegenes.net/blog/3d-unet-pytorch/
     model = UNet3D(in_channels=1, out_channels=1)
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = CombinedLoss()
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5, factor=0.1)
 
@@ -111,7 +134,7 @@ if __name__ == '__main__':
         avg_train_loss = running_loss / len(dataloader)
         avg_val_loss, avg_val_dice = validate(model, validationloader, criterion, device)
         scheduler.step(avg_val_dice)
-
+        print(avg_val_dice)
         if avg_val_dice > best_val_dice:
             best_val_dice = avg_val_dice
             torch.save(model.state_dict(), model_save_path)
