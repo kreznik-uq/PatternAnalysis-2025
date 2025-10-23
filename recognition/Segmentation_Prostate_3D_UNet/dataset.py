@@ -108,6 +108,33 @@ class ProstateDataset(Dataset):
 
         return image_tensor, label_tensor
 
+def resample_or_pad_volume(volume, target_shape=(128, 128, 64)):
+
+    current_shape = volume.shape
+    target_h, target_w, target_d = target_shape
+    h_diff = target_h - current_shape[0]
+    if h_diff > 0:
+        pad_before, pad_after = h_diff // 2, h_diff - (h_diff // 2)
+        volume = np.pad(volume, ((pad_before, pad_after), (0, 0), (0, 0)), mode='constant')
+    elif h_diff < 0:
+        crop_start = abs(h_diff) // 2
+        volume = volume[crop_start:crop_start + target_h, :, :]
+    w_diff = target_w - current_shape[1]
+    if w_diff > 0:
+        pad_before, pad_after = w_diff // 2, w_diff - (w_diff // 2)
+        volume = np.pad(volume, ((0, 0), (pad_before, pad_after), (0, 0)), mode='constant')
+    elif w_diff < 0:
+        crop_start = abs(w_diff) // 2
+        volume = volume[:, crop_start:crop_start + target_w, :]
+    d_diff = target_d - current_shape[2]
+    if d_diff > 0:
+        pad_before, pad_after = d_diff // 2, d_diff - (d_diff // 2)
+        volume = np.pad(volume, ((0, 0), (0, 0), (pad_before, pad_after)), mode='constant')
+    elif d_diff < 0:
+        crop_start = abs(d_diff) // 2
+        volume = volume[:, :, crop_start:crop_start + target_d]
+    return volume
+
 def preprocess():
     IMAGE_DIR = "semantic_labels_anon"
     LABEL_DIR = "semantic_MRs_anon"
@@ -117,14 +144,17 @@ def preprocess():
     os.makedirs(PROCESSED_IMAGE_DIR, exist_ok=True)
     os.makedirs(PROCESSED_LABEL_DIR, exist_ok=True)
 
-    DOWNSAMPLE_FACTOR = 0.5
+    TARGET_SHAPE = (128, 128, 64)
 
     image_paths = sorted(glob.glob(os.path.join(IMAGE_DIR, '*.nii.gz')))
     label_paths = sorted(glob.glob(os.path.join(LABEL_DIR, '*.nii.gz')))
 
     for i, (img_path, lbl_path) in enumerate(tqdm(zip(image_paths, label_paths), total=len(image_paths))):
-        image_array = load_data_3D([img_path], normImage=True, downsample_factor=DOWNSAMPLE_FACTOR)[0]
-        label_array = load_data_3D([lbl_path], dtype=np.uint8, categorical=False, downsample_factor=DOWNSAMPLE_FACTOR)[0]
+        image_array = load_data_3D([img_path], normImage=True, is_label=False)[0]
+        label_array = load_data_3D([lbl_path], normImage=False,is_label=True)[0]
+
+        image_array = resample_or_pad_volume(image_array, target_shape=TARGET_SHAPE)
+        label_array = resample_or_pad_volume(label_array, target_shape=TARGET_SHAPE)
 
         image_tensor = torch.from_numpy(image_array).float().unsqueeze(0)
         label_tensor = torch.from_numpy(label_array).float().unsqueeze(0)
