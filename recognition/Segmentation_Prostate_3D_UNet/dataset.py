@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 from scipy.ndimage import zoom
 
 def to_channels(arr: np.ndarray, dtype=np.uint8) -> np.ndarray:
+    arr = arr.astype(np.int64) 
     channels = np.unique(arr)
     res = np.zeros(arr.shape + (len(channels),), dtype=dtype)
     for c in channels:
@@ -32,65 +33,35 @@ labels
     early_stop: Stop loading pre-maturely? Leaves arrays mostly empty, for quick
 loading and testing scripts.
     '''
-    affines = []
 
-    # ~ interp = 'continuous'
-    interp = 'linear'
-    if dtype == np.uint8: # assume labels
-        interp = 'nearest'
-
-    # get fixed size
-    num = len(imageNames)
-    niftiImage = nib.load(imageNames[0])
+    niftiImage = nib.load(imageNames)
     if orient:
         niftiImage = nib.as_closest_canonical(niftiImage)
-    # ~ testResultName = "oriented.nii.gz"
-    # ~ niftiImage.to_filename(testResultName)
-    first_case = niftiImage.get_fdata(caching='unchanged')
+
+    first_case = niftiImage.get_fdata()
+    affine = niftiImage.affine 
+
+    if not normImage:
+        first_case = np.round(first_case).astype(np.int16)
+
     if len(first_case.shape) == 4:
         first_case = first_case[:, :, :, 0] # sometimes extra dims, remove
     if downsample_factor:
         first_case = zoom(first_case, downsample_factor, order=0 if categorical else 3)
+
+    if normImage:
+        mean = np.mean(first_case)
+        std = np.std(first_case)
+        if std > 0:
+            first_case = (first_case - mean) / std
+
     if categorical:
-        first_case = to_channels(first_case, dtype=dtype)
-        rows, cols, depth, channels = first_case.shape
-        images = np.zeros((num, rows, cols, depth, channels), dtype=dtype)
-    else:
-        rows, cols, depth = first_case.shape
-        images = np.zeros((num, rows, cols, depth), dtype=dtype)
-
-    for i, inName in enumerate(tqdm(imageNames)):
-        niftiImage = nib.load(inName)
-        if orient:
-            niftiImage = nib.as_closest_canonical(niftiImage)
-        inImage = niftiImage.get_fdata(caching='unchanged') # read disk only
-        affine = niftiImage.affine
-        if len(inImage.shape) == 4:
-            inImage = inImage[:, :, :, 0] # sometimes extra dims in HipMRI_study data
-        inImage = inImage[:, :, :depth] # clip slices
-        if downsample_factor:
-            inImage = zoom(inImage, downsample_factor, order=0 if categorical else 3)
-        inImage = inImage.astype(dtype)
-        if normImage:
-            # ~ inImage = inImage / np.linalg.norm(inImage)
-            # ~ inImage = 255. * inImage / inImage.max()
-            inImage = (inImage - inImage.mean()) / inImage.std()
-        if categorical:
-            inImage = to_channels(inImage, dtype=dtype)
-            # ~ images[i, :, :, :, :] = inImage
-            images[i, :inImage.shape[0], :inImage.shape[1], :inImage.shape[2], :inImage.shape[3]] = inImage # with pad
-        else:
-            # ~ images[i, :, :, :] = inImage
-            images[i, :inImage.shape[0], :inImage.shape[1], :inImage.shape[2]] = inImage # with pad
-
-        affines.append(affine)
-        if i > 20 and early_stop:
-            break
+        first_case = to_channels(first_case, dtype=np.uint8)
 
     if getAffines:
-        return images, affines
+        return first_case.astype(dtype), affine
     else:
-        return images
+        return first_case.astype(dtype)
 
 
 class ProstateDataset(Dataset):
@@ -136,8 +107,8 @@ def resample_or_pad_volume(volume, target_shape=(128, 128, 64)):
     return volume
 
 def preprocess():
-    IMAGE_DIR = "semantic_labels_anon"
-    LABEL_DIR = "semantic_MRs_anon"
+    IMAGE_DIR = "semantic_MRs_anon"
+    LABEL_DIR = "semantic_labels_anon"
 
     PROCESSED_IMAGE_DIR = "processed_data/images"
     PROCESSED_LABEL_DIR = "processed_data/labels"
@@ -145,23 +116,27 @@ def preprocess():
     os.makedirs(PROCESSED_LABEL_DIR, exist_ok=True)
 
     TARGET_SHAPE = (128, 128, 64)
+    DOWNSAMPLE_FACTOR = 0.5
 
     image_paths = sorted(glob.glob(os.path.join(IMAGE_DIR, '*.nii.gz')))
     label_paths = sorted(glob.glob(os.path.join(LABEL_DIR, '*.nii.gz')))
 
     for i, (img_path, lbl_path) in enumerate(tqdm(zip(image_paths, label_paths), total=len(image_paths))):
-        image_array = load_data_3D([img_path], normImage=True, is_label=False)[0]
-        label_array = load_data_3D([lbl_path], normImage=False,is_label=True)[0]
+        image_array = load_data_3D(img_path, normImage=True, categorical=False, downsample_factor=DOWNSAMPLE_FACTOR, dtype=np.float32)
+        label_array = load_data_3D(lbl_path, normImage=False,categorical=False, downsample_factor=DOWNSAMPLE_FACTOR, dtype=np.uint8)
 
         image_array = resample_or_pad_volume(image_array, target_shape=TARGET_SHAPE)
         label_array = resample_or_pad_volume(label_array, target_shape=TARGET_SHAPE)
 
-        image_tensor = torch.from_numpy(image_array).float().unsqueeze(0)
-        label_tensor = torch.from_numpy(label_array).float().unsqueeze(0)
+        label_one_hot = to_channels(label_array, dtype=np.uint8)
 
-        base_filename = os.path.basename(img_path).replace('.nii.gz', '.pt')
-        torch.save(image_tensor, os.path.join(PROCESSED_IMAGE_DIR, base_filename))
-        torch.save(label_tensor, os.path.join(PROCESSED_LABEL_DIR, base_filename))
+        image_tensor = torch.from_numpy(image_array).float().unsqueeze(0)
+        label_tensor = torch.from_numpy(label_one_hot.copy()).to(torch.uint8).unsqueeze(0)
+
+        base_image_filename = os.path.basename(img_path).replace('.nii.gz', '.pt')
+        base_label_filename = os.path.basename(lbl_path).replace('.nii.gz', '.pt')
+        torch.save(image_tensor, os.path.join(PROCESSED_IMAGE_DIR, base_image_filename))
+        torch.save(label_tensor, os.path.join(PROCESSED_LABEL_DIR, base_label_filename))
 
 if __name__ == '__main__':
     preprocess()
