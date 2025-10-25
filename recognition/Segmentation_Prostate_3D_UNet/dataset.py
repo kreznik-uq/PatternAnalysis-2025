@@ -11,14 +11,14 @@ def to_channels(arr: np.ndarray, dtype=np.uint8) -> np.ndarray:
     arr = arr.astype(np.int64) 
     channels = np.unique(arr)
     res = np.zeros(arr.shape + (len(channels),), dtype=dtype)
-    for c in channels:
-        c = int(c)
-        res[..., c:c+1][arr == c] = 1
+
+    for i, c in enumerate(channels):
+        res[..., i][arr == c] = 1
 
     return res
 
 def load_data_3D(imageNames, normImage=False, categorical=False, dtype=np.float32,
-getAffines=False, orient=False, early_stop=False, downsample_factor=None):
+getAffines=False, orient=False, early_stop=False, downsample_factor=None, interpolation_order=3):
     '''
     Load medical image data from names, cases list provided into a list for each.
 
@@ -47,7 +47,7 @@ loading and testing scripts.
     if len(first_case.shape) == 4:
         first_case = first_case[:, :, :, 0] # sometimes extra dims, remove
     if downsample_factor:
-        first_case = zoom(first_case, downsample_factor, order=0 if categorical else 3)
+        first_case = zoom(first_case, downsample_factor, order=interpolation_order)
 
     if normImage:
         mean = np.mean(first_case)
@@ -123,7 +123,7 @@ def preprocess():
 
     for i, (img_path, lbl_path) in enumerate(tqdm(zip(image_paths, label_paths), total=len(image_paths))):
         image_array = load_data_3D(img_path, normImage=True, categorical=False, downsample_factor=DOWNSAMPLE_FACTOR, dtype=np.float32)
-        label_array = load_data_3D(lbl_path, normImage=False,categorical=False, downsample_factor=DOWNSAMPLE_FACTOR, dtype=np.uint8)
+        label_array = load_data_3D(lbl_path, normImage=False,categorical=False, downsample_factor=DOWNSAMPLE_FACTOR, dtype=np.uint8, interpolation_order=0)
 
         image_array = resample_or_pad_volume(image_array, target_shape=TARGET_SHAPE)
         label_array = resample_or_pad_volume(label_array, target_shape=TARGET_SHAPE)
@@ -131,7 +131,7 @@ def preprocess():
         label_one_hot = to_channels(label_array, dtype=np.uint8)
 
         image_tensor = torch.from_numpy(image_array).float().unsqueeze(0)
-        label_tensor = torch.from_numpy(label_one_hot.copy()).to(torch.uint8).unsqueeze(0)
+        label_tensor = torch.from_numpy(label_one_hot.copy()).to(torch.uint8)
 
         base_image_filename = os.path.basename(img_path).replace('.nii.gz', '.pt')
         base_label_filename = os.path.basename(lbl_path).replace('.nii.gz', '.pt')
