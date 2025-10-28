@@ -2,9 +2,8 @@ import torch
 import numpy as np
 import nibabel as nib
 import os
-import glob
 from tqdm import tqdm
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import DataLoader, random_split
 from torch.amp import autocast
 from monai.inferers import sliding_window_inference
 from scipy.ndimage import zoom
@@ -23,18 +22,8 @@ CONFIG = {
     "SW_BATCH_SIZE": 4,
     "OVERLAP": 0.5,
     "VALIDATION_SPLIT": 0.2,
-    "RANDOM_SEED": 42,
     "NUM_WORKERS": 8,
 }
-
-def dice_coefficient(pred, target):
-    pred_probs = torch.sigmoid(pred)
-    pred_mask = (pred_probs > 0.5).float()
-    intersection = (pred_mask * target).sum()
-    union = pred_mask.sum() + target.sum()
-    
-    dice = (2. * intersection) / (union + 1e-6)
-    return dice.item()
 
 def calculate_mean_dice_score(pred_mask, target_one_hot, num_classes, smooth=1e-6):
     dice_per_class = []
@@ -45,6 +34,7 @@ def calculate_mean_dice_score(pred_mask, target_one_hot, num_classes, smooth=1e-
         union = pred_class.sum() + target_class.sum()
         dice = (2. * intersection + smooth) / (union + smooth)
         dice_per_class.append(dice)
+
     return np.mean(dice_per_class) if dice_per_class else 0.0
 
 def numpy_to_one_hot(mask, num_classes):
@@ -66,7 +56,6 @@ def get_case_key(filename: str) -> str:
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
 
     os.makedirs(CONFIG["OUTPUT_DIR"], exist_ok=True)
 

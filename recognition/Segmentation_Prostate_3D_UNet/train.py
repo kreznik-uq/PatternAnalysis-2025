@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from tqdm import tqdm
 from modules import UNet3D
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, random_split
 from dataset import ProstateDataset
 from torch.amp import GradScaler, autocast
 
@@ -12,16 +12,6 @@ from modules import UNet3D
 
 # Code reference: https://medium.com/data-scientists-diary/
 # implementation-of-dice-loss-vision-pytorch-7eef1e438f68
-
-def dice_coefficient(pred, target):
-    pred_probs = torch.sigmoid(pred)
-    pred_mask = (pred_probs > 0.5).float()
-    intersection = (pred_mask * target).sum()
-    union = pred_mask.sum() + target.sum()
-    
-    dice = (2. * intersection) / (union + 1e-6)
-    return dice.item()
-
 
 def mean_dice_coefficient(pred, target, num_classes, smooth=1e-6):
     pred_mask = torch.argmax(pred, dim=1)
