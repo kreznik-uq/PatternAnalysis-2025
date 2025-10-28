@@ -80,7 +80,7 @@ def validate(model, loader, criterion, device, num_classes):
     val_running_dc = 0
     
     with torch.no_grad():
-        for inputs, labels in tqdm(loader, desc="Validating"):
+        for inputs, labels, image_path in tqdm(loader, desc="Validating"):
             inputs = inputs.float().to(device)
             labels = labels.squeeze(1).permute(0, 4, 1, 2, 3).float().to(device)
 
@@ -104,6 +104,7 @@ if __name__ == '__main__':
 
     dataset = ProstateDataset(image_dir="processed_data/images", label_dir="processed_data/labels")
     dataset_size = len(dataset)
+    print(dataset_size)
     val_size = int(dataset_size * 0.2)
     train_size = dataset_size - val_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
@@ -129,7 +130,7 @@ if __name__ == '__main__':
         running_loss = 0.0
 
         progress_bar = tqdm(dataloader)
-        for inputs, labels in progress_bar:
+        for inputs, labels, image_path in progress_bar:
             inputs = inputs.to(device)
             labels = labels.squeeze(1).permute(0, 4, 1, 2, 3).float().to(device)
 

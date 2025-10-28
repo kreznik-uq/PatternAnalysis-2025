@@ -63,9 +63,14 @@ loading and testing scripts.
     else:
         return first_case.astype(dtype)
 
+def get_case_key(filename: str) -> str:
+    name_without_ext = os.path.splitext(os.path.basename(filename))[0]
+    parts = name_without_ext.split('_')
+    if len(parts) >= 2:
+        return f"{parts[0]}_{parts[1]}"
+    return name_without_ext
 
 class ProstateDataset(Dataset):
-
     def __init__(self, image_dir, label_dir, downsample_factor=0.5):
         self.image_paths = sorted(glob.glob(os.path.join(image_dir, '*.pt')))
         self.label_paths = sorted(glob.glob(os.path.join(label_dir, '*.pt')))
@@ -77,7 +82,33 @@ class ProstateDataset(Dataset):
         image_tensor = torch.load(self.image_paths[idx])
         label_tensor = torch.load(self.label_paths[idx])
 
-        return image_tensor, label_tensor
+        return image_tensor, label_tensor, self.image_paths
+
+class ProstateDatasetEvaluate(Dataset):
+
+    def __init__(self, image_dir, label_dir, downsample_factor=0.5):
+        image_map = {get_case_key(p): p for p in glob.glob(os.path.join(image_dir, '*.pt'))}
+        label_map = {get_case_key(p): p for p in glob.glob(os.path.join(label_dir, '*.pt'))}
+
+        image_keys = set(image_map.keys())
+        label_keys = set(label_map.keys())
+        common_keys = sorted(list(image_keys.intersection(label_keys)))
+        self.file_pairs = [{'image': image_map[key], 'label': label_map[key]} for key in common_keys]
+
+    def __len__(self):
+        return len(self.file_pairs)
+
+    def __getitem__(self, idx):
+
+        pair = self.file_pairs[idx]
+        
+        image_path = pair['image']
+        label_path = pair['label']
+        
+        image_tensor = torch.load(image_path)
+        label_tensor = torch.load(label_path)
+
+        return image_tensor, label_tensor, image_path
 
 def resample_or_pad_volume(volume, target_shape=(128, 128, 64)):
 
