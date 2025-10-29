@@ -80,17 +80,16 @@ def main():
                     
                     # Construct path to the original label file
                     label_key = get_case_key(base_filename)
-                    original_label_filename = base_filename.replace(label_key, f"{label_key}_SEMANTIC")
+                    original_label_filename = base_filename.replace("_LFOV.nii.gz", "_SEMANTIC_LFOV.nii.gz")
                     original_label_path = os.path.join(CONFIG["ORIGINAL_LABEL_DIR"], original_label_filename)
 
-                    if os.path.exists(original_label_path):
-                        original_label_nifti = nib.load(original_label_path)
-                        original_label_mask = np.round(original_label_nifti.get_fdata()).astype(np.uint8)
+                    original_label_nifti = nib.load(original_label_path)
+                    original_label_mask = np.round(original_label_nifti.get_fdata()).astype(np.uint8)
                         
-                        original_label_one_hot = numpy_to_one_hot(original_label_mask, num_classes=CONFIG["NUM_CLASSES"])
+                    original_label_one_hot = numpy_to_one_hot(original_label_mask, num_classes=CONFIG["NUM_CLASSES"])
                         
-                        score = calculate_mean_dice_score(full_size_pred_mask, original_label_one_hot, CONFIG["NUM_CLASSES"])
-                        dice_scores.append(score)
+                    score = calculate_mean_dice_score(full_size_pred_mask, original_label_one_hot, CONFIG["NUM_CLASSES"])
+                    dice_scores.append(score)
 
                     # Save the prediction as a NIfTI file
                     pred_nifti = nib.Nifti1Image(full_size_pred_mask, affine=original_nifti.affine, header=original_nifti.header)
