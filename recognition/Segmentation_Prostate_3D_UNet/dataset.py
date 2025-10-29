@@ -105,6 +105,10 @@ def resample_or_pad_volume(volume, target_shape=(128, 128, 64)):
     return volume
 
 def preprocess():
+    """
+    Processes .nii.gz files into .pt files
+    Downscales by downsample factor in the process
+    """
     IMAGE_DIR = "semantic_MRs_anon"
     LABEL_DIR = "semantic_labels_anon"
 

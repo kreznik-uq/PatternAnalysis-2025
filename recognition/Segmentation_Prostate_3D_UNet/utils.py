@@ -6,6 +6,9 @@ import re
 from torch.utils.data import Subset
 
 def to_channels(arr: np.ndarray, dtype=np.uint8) -> np.ndarray:
+    """
+    Converts a numpy array with integer labels to a one-hot encoded array
+    """
     arr = arr.astype(np.int64) 
     channels = np.unique(arr)
     res = np.zeros(arr.shape + (len(channels),), dtype=dtype)
@@ -31,16 +34,6 @@ def calculate_mean_dice_score(pred_mask, target_one_hot, num_classes, smooth=1e-
 
     return np.mean(dice_per_class) if dice_per_class else 0.0
 
-def numpy_to_one_hot(mask, num_classes):
-    """Converts a numpy mask to a one-hot encoded array."""
-    mask = mask.astype(np.int64)
-    shape = mask.shape
-    one_hot = np.zeros(shape + (num_classes,), dtype=np.uint8)
-
-    for i in range(num_classes):
-        one_hot[..., i][mask == i] = 1
-    return one_hot
-
 def get_case_key(filename: str) -> str:
     """Extracts a case key from a filename."""
     match = re.search(r'Case_(\d+)', os.path.basename(filename))
@@ -50,6 +43,9 @@ def get_case_key(filename: str) -> str:
 # implementation-of-dice-loss-vision-pytorch-7eef1e438f68
 
 def mean_dice_coefficient(pred, target, num_classes, smooth=1e-6):
+    """
+    Calculates the mean dice coefficient for tensors
+    """
     pred_mask = torch.argmax(pred, dim=1)
     
     pred_one_hot = nn.functional.one_hot(pred_mask, num_classes).permute(0, 4, 1, 2, 3)
@@ -67,11 +63,6 @@ def mean_dice_coefficient(pred, target, num_classes, smooth=1e-6):
         
     return sum(dice_per_class) / len(dice_per_class) if dice_per_class else 0.0
 
-def get_patient_id_from_path(filepath: str) -> str:
-    filename = os.path.basename(filepath)
-    match = re.search(r'Case_(\d+)', filename)
-    return match.group(1)
-
 
 def create_patient_aware_split(dataset, val_split=0.2):
     """
@@ -80,7 +71,7 @@ def create_patient_aware_split(dataset, val_split=0.2):
     """
 
     all_image_paths = dataset.image_paths
-    patient_ids = [get_patient_id_from_path(p) for p in all_image_paths]
+    patient_ids = [get_case_key(p) for p in all_image_paths]
     unique_patients = np.unique(patient_ids)
 
     # Shuffle the unique patient IDs

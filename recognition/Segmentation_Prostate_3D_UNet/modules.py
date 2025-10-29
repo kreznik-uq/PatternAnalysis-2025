@@ -4,6 +4,10 @@ import torch.nn as nn
 # Code reference: https://www.codegenes.net/blog/3d-unet-pytorch/
 
 class DoubleConv(nn.Module):
+    """
+    3D Convolution with instance normalisation and LeakyReLu function
+    Also implements residual connections
+    """
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.conv = nn.Sequential(
@@ -23,8 +27,12 @@ class DoubleConv(nn.Module):
 
 
 class UNet3D(nn.Module):
+    """
+    3D UNet consisting of encoder, bottleneck, decoder
+    """
     def __init__(self, in_channels=1, out_channels=1):
         super().__init__()
+        #Encode
         self.encoder1 = DoubleConv(in_channels, 64)
         self.pool1 = nn.MaxPool3d(kernel_size=2, stride=2)
         self.encoder2 = DoubleConv(64, 128)
@@ -34,6 +42,7 @@ class UNet3D(nn.Module):
 
         self.bottleneck = DoubleConv(256, 512)
 
+        #Decode
         self.upconv3 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='trilinear', align_corners=True),
             nn.Conv3d(512, 256, kernel_size=1)

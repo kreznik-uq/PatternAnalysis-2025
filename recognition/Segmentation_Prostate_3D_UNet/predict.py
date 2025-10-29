@@ -8,7 +8,7 @@ from scipy.ndimage import zoom
 from modules import UNet3D
 from dataset import ProstateDataset
 from torch.amp import autocast
-from utils import get_case_key, numpy_to_one_hot, calculate_mean_dice_score 
+from utils import get_case_key, to_channels, calculate_mean_dice_score 
 
 CONFIG = {
     "MODEL_PATH": "best_model.pth",
@@ -86,7 +86,7 @@ def main():
                     original_label_nifti = nib.load(original_label_path)
                     original_label_mask = np.round(original_label_nifti.get_fdata()).astype(np.uint8)
                         
-                    original_label_one_hot = numpy_to_one_hot(original_label_mask, num_classes=CONFIG["NUM_CLASSES"])
+                    original_label_one_hot = to_channels(original_label_mask, num_classes=CONFIG["NUM_CLASSES"])
                         
                     score = calculate_mean_dice_score(full_size_pred_mask, original_label_one_hot, CONFIG["NUM_CLASSES"])
                     dice_scores.append(score)

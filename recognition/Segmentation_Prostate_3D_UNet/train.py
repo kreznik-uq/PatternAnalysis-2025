@@ -11,6 +11,9 @@ from modules import UNet3D
 from utils import mean_dice_coefficient, create_patient_aware_split
 
 class DiceLoss(nn.Module):
+    """
+    Calculates dice loss
+    """
     def __init__(self, num_classes, smooth=1e-6):
         super(DiceLoss, self).__init__()
         self.num_classes = num_classes
@@ -30,6 +33,9 @@ class DiceLoss(nn.Module):
         return 1 - dice.mean()
 
 class CombinedLoss(nn.Module):
+    """
+    Combined loss function that is a sum of cross entropy loss and Dice loss
+    """
     def __init__(self, num_classes):
         super(CombinedLoss, self).__init__()
         self.cross_entropy = nn.CrossEntropyLoss()
@@ -45,6 +51,9 @@ class CombinedLoss(nn.Module):
 # mastering-u-net-a-step-by-step-guide-to-segmentation-from-scratch-with-pytorch-6a17c5916114
 
 def validate(model, loader, criterion, device, num_classes):
+    """
+    Evaluates the model on the evaluation dataset, returning loss and Dice coefficient
+    """
     model.eval()
     val_running_loss = 0
     val_running_dc = 0
@@ -69,7 +78,9 @@ def validate(model, loader, criterion, device, num_classes):
     return avg_val_loss, avg_val_dc
 
 if __name__ == '__main__':
-
+    """
+    Main training loop
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     dataset = ProstateDataset(image_dir="processed_data/images", label_dir="processed_data/labels")
