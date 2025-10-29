@@ -7,16 +7,19 @@ class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.conv = nn.Sequential(
-            nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True)
+            nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.InstanceNorm3d(out_channels),
+            nn.LeakyReLU(inplace=True),      
+            nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.InstanceNorm3d(out_channels),
+            nn.LeakyReLU(inplace=True) 
         )
 
+        self.residual_conv = nn.Conv3d(in_channels, out_channels, 
+                                       kernel_size=1) if in_channels != out_channels else nn.Identity()
+
     def forward(self, x):
-        return self.conv(x)
+        return self.conv(x) + self.residual_conv(x)
 
 
 class UNet3D(nn.Module):
@@ -31,11 +34,20 @@ class UNet3D(nn.Module):
 
         self.bottleneck = DoubleConv(256, 512)
 
-        self.upconv3 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
+        self.upconv3 = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='trilinear', align_corners=True),
+            nn.Conv3d(512, 256, kernel_size=1)
+        )
         self.decoder3 = DoubleConv(512, 256)
-        self.upconv2 = nn.ConvTranspose3d(256, 128, kernel_size=2, stride=2)
+        self.upconv2 = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='trilinear', align_corners=True),
+            nn.Conv3d(256, 128, kernel_size=1)
+        )
         self.decoder2 = DoubleConv(256, 128)
-        self.upconv1 = nn.ConvTranspose3d(128, 64, kernel_size=2, stride=2)
+        self.upconv1 = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='trilinear', align_corners=True),
+            nn.Conv3d(128, 64, kernel_size=1)
+        )
         self.decoder1 = DoubleConv(128, 64)
 
         self.out_conv = nn.Conv3d(64, out_channels, kernel_size=1)
@@ -63,7 +75,7 @@ class UNet3D(nn.Module):
 if __name__ == '__main__':
     dummy_input = torch.randn(1, 1, 128, 128, 128) 
 
-    model = UNet3D(in_channels=1, out_channels=2) 
+    model = UNet3D(in_channels=1, out_channels=6) 
     output = model(dummy_input)
     
-    assert output.shape == (1, 2, 128, 128, 128)
+    assert output.shape == (1, 6, 128, 128, 128)
