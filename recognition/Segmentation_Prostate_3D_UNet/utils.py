@@ -35,8 +35,8 @@ def calculate_mean_dice_score(pred_mask, target_one_hot, num_classes, smooth=1e-
     return np.mean(dice_per_class) if dice_per_class else 0.0
 
 def get_case_key(filename: str) -> str:
-    """Extracts a case key from a filename."""
-    match = re.search(r'Case_(\d+)', os.path.basename(filename))
+    """Extracts a unique case-week key from a filename."""
+    match = re.search(r'(Case_\d+_Week\d+)', os.path.basename(filename))
     return match.group(1)
 
 # Code reference: https://medium.com/data-scientists-diary/
