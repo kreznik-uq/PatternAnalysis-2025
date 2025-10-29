@@ -56,34 +56,17 @@ loading and testing scripts.
 
 class ProstateDataset(Dataset):
     def __init__(self, image_dir, label_dir, downsample_factor=0.5):
-        self.image_paths = sorted(glob.glob(os.path.join(image_dir, '*.pt')))
-        self.label_paths = sorted(glob.glob(os.path.join(label_dir, '*.pt')))
+        image_map = {get_case_key(p): p for p in glob.glob(os.path.join(image_dir, '*.pt'))}
+        label_map = {get_case_key(p): p for p in glob.glob(os.path.join(label_dir, '*.pt'))}
+
+        common_keys = sorted(list(set(image_map.keys()).intersection(set(label_map.keys()))))
+        self.file_pairs = [{'image': image_map[key], 'label': label_map[key]} for key in common_keys]
+        self.image_paths = [pair['image'] for pair in self.file_pairs]
 
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
-        image_tensor = torch.load(self.image_paths[idx])
-        label_tensor = torch.load(self.label_paths[idx])
-
-        return image_tensor, label_tensor, self.image_paths
-
-class ProstateDatasetEvaluate(Dataset):
-
-    def __init__(self, image_dir, label_dir, downsample_factor=0.5):
-        image_map = {get_case_key(p): p for p in glob.glob(os.path.join(image_dir, '*.pt'))}
-        label_map = {get_case_key(p): p for p in glob.glob(os.path.join(label_dir, '*.pt'))}
-
-        image_keys = set(image_map.keys())
-        label_keys = set(label_map.keys())
-        common_keys = sorted(list(image_keys.intersection(label_keys)))
-        self.file_pairs = [{'image': image_map[key], 'label': label_map[key]} for key in common_keys]
-
-    def __len__(self):
-        return len(self.file_pairs)
-
-    def __getitem__(self, idx):
-
         pair = self.file_pairs[idx]
         
         image_path = pair['image']
