@@ -6,7 +6,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from scipy.ndimage import zoom
 from modules import UNet3D
-from dataset import ProstateDatasetEvaluate
+from dataset import ProstateDataset
 from torch.amp import autocast
 from utils import get_case_key, numpy_to_one_hot, calculate_mean_dice_score 
 
@@ -33,11 +33,10 @@ def main():
     model.eval()
 
     # Setup the dataset and DataLoader for evaluation
-    full_dataset = ProstateDatasetEvaluate(
+    full_dataset = ProstateDataset(
         image_dir=CONFIG["PROCESSED_IMAGE_DIR"],
         label_dir=CONFIG["PROCESSED_LABEL_DIR"]
     )
-    
     dice_scores = []
 
     eval_loader = DataLoader(
@@ -101,12 +100,11 @@ def main():
                     print(f"Warning: Could not find original NIfTI file at {original_nifti_path} to save prediction.")
 
     # Calculate and print the average Dice score and standard deviation
-    if dice_scores:
-        avg_dice = np.mean(dice_scores)
-        std_dice = np.std(dice_scores)
+    avg_dice = np.mean(dice_scores)
+    std_dice = np.std(dice_scores)
         
-        print(f"Average Dice Score: {avg_dice:.4f}")
-        print(f"Standard Deviation of Dice Scores: {std_dice:.4f}")
+    print(f"Average Dice Score: {avg_dice:.4f}")
+    print(f"Standard Deviation of Dice Scores: {std_dice:.4f}")
 
 if __name__ == '__main__':
     main()

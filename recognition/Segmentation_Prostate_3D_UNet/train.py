@@ -4,11 +4,11 @@ import torch.nn as nn
 
 from tqdm import tqdm
 from modules import UNet3D
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from dataset import ProstateDataset
 from torch.amp import GradScaler, autocast
 from modules import UNet3D
-from utils import mean_dice_coefficient
+from utils import mean_dice_coefficient, create_patient_aware_split
 
 class DiceLoss(nn.Module):
     def __init__(self, num_classes, smooth=1e-6):
@@ -73,11 +73,7 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     dataset = ProstateDataset(image_dir="processed_data/images", label_dir="processed_data/labels")
-    dataset_size = len(dataset)
-    print(dataset_size)
-    val_size = int(dataset_size * 0.2)
-    train_size = dataset_size - val_size
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    train_dataset, val_dataset = create_patient_aware_split(dataset, val_split=0.2)
 
     dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=8, pin_memory=True)
     validationloader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=8, pin_memory=True)

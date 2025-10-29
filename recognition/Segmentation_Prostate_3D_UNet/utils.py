@@ -2,6 +2,8 @@ import numpy as np
 import os
 import torch.nn as nn
 import torch
+import re
+from torch.utils.data import Subset
 
 def to_channels(arr: np.ndarray, dtype=np.uint8) -> np.ndarray:
     arr = arr.astype(np.int64) 
@@ -41,11 +43,8 @@ def numpy_to_one_hot(mask, num_classes):
 
 def get_case_key(filename: str) -> str:
     """Extracts a case key from a filename."""
-    name_without_ext = os.path.splitext(filename)[0]
-    parts = name_without_ext.split('_')
-    if len(parts) >= 3:
-        return f"{parts[0]}_{parts[1]}_{parts[2]}"
-    return ""
+    match = re.search(r'Case_(\d+)', os.path.basename(filename))
+    return match.group(1)
 
 # Code reference: https://medium.com/data-scientists-diary/
 # implementation-of-dice-loss-vision-pytorch-7eef1e438f68
@@ -67,3 +66,48 @@ def mean_dice_coefficient(pred, target, num_classes, smooth=1e-6):
         dice_per_class.append(dice.item())
         
     return sum(dice_per_class) / len(dice_per_class) if dice_per_class else 0.0
+
+def get_patient_id_from_path(filepath: str) -> str:
+    filename = os.path.basename(filepath)
+    match = re.search(r'Case_(\d+)', filename)
+    return match.group(1)
+
+
+def create_patient_aware_split(dataset, val_split=0.2):
+    """
+    Splits a dataset into training and validation sets, ensuring that all
+    images from a single patient belong to only one set.
+    """
+
+    all_image_paths = dataset.image_paths
+    patient_ids = [get_patient_id_from_path(p) for p in all_image_paths]
+    unique_patients = np.unique(patient_ids)
+
+    # Shuffle the unique patient IDs
+    np.random.shuffle(unique_patients)
+
+    # Split patient IDs into training and validation sets
+    val_num_patients = int(len(unique_patients) * val_split)
+    train_num_patients = len(unique_patients) - val_num_patients
+    
+    train_patient_ids = unique_patients[:train_num_patients]
+    val_patient_ids = unique_patients[train_num_patients:]
+    
+    # Create lists of indices for the full dataset
+    train_indices = []
+    val_indices = []
+    
+    for idx, patient_id in enumerate(patient_ids):
+        if patient_id in train_patient_ids:
+            train_indices.append(idx)
+        else:
+            val_indices.append(idx)
+            
+    print(f"Splitting into {len(train_patient_ids)} training patients and {len(val_patient_ids)} validation patients.")
+    print(f"Resulting in {len(train_indices)} training images and {len(val_indices)} validation images.")
+
+    # Create Subset datasets
+    train_dataset = Subset(dataset, train_indices)
+    val_dataset = Subset(dataset, val_indices)
+    
+    return train_dataset, val_dataset
