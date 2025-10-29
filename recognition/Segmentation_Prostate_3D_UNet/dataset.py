@@ -6,16 +6,7 @@ import os
 from tqdm import tqdm
 from torch.utils.data import Dataset
 from scipy.ndimage import zoom
-
-def to_channels(arr: np.ndarray, dtype=np.uint8) -> np.ndarray:
-    arr = arr.astype(np.int64) 
-    channels = np.unique(arr)
-    res = np.zeros(arr.shape + (len(channels),), dtype=dtype)
-
-    for i, c in enumerate(channels):
-        res[..., i][arr == c] = 1
-
-    return res
+from utils import to_channels, get_case_key
 
 def load_data_3D(imageNames, normImage=False, categorical=False, dtype=np.float32,
 getAffines=False, orient=False, early_stop=False, downsample_factor=None, interpolation_order=3):
@@ -62,13 +53,6 @@ loading and testing scripts.
         return first_case.astype(dtype), affine
     else:
         return first_case.astype(dtype)
-
-def get_case_key(filename: str) -> str:
-    name_without_ext = os.path.splitext(os.path.basename(filename))[0]
-    parts = name_without_ext.split('_')
-    if len(parts) >= 2:
-        return f"{parts[0]}_{parts[1]}"
-    return name_without_ext
 
 class ProstateDataset(Dataset):
     def __init__(self, image_dir, label_dir, downsample_factor=0.5):

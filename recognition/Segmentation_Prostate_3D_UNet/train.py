@@ -7,29 +7,9 @@ from modules import UNet3D
 from torch.utils.data import DataLoader, random_split
 from dataset import ProstateDataset
 from torch.amp import GradScaler, autocast
-
 from modules import UNet3D
+from utils import mean_dice_coefficient
 
-# Code reference: https://medium.com/data-scientists-diary/
-# implementation-of-dice-loss-vision-pytorch-7eef1e438f68
-
-def mean_dice_coefficient(pred, target, num_classes, smooth=1e-6):
-    pred_mask = torch.argmax(pred, dim=1)
-    
-    pred_one_hot = nn.functional.one_hot(pred_mask, num_classes).permute(0, 4, 1, 2, 3)
-
-    dice_per_class = []
-    for i in range(1, num_classes):
-        pred_class = pred_one_hot[:, i, :, :, :]
-        target_class = target[:, i, :, :, :]
-        
-        intersection = (pred_class * target_class).sum()
-        union = pred_class.sum() + target_class.sum()
-        
-        dice = (2. * intersection + smooth) / (union + smooth)
-        dice_per_class.append(dice.item())
-        
-    return sum(dice_per_class) / len(dice_per_class) if dice_per_class else 0.0
 class DiceLoss(nn.Module):
     def __init__(self, num_classes, smooth=1e-6):
         super(DiceLoss, self).__init__()
@@ -99,8 +79,8 @@ if __name__ == '__main__':
     train_size = dataset_size - val_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
-    dataloader = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=8, pin_memory=True)
-    validationloader = DataLoader(val_dataset, batch_size=2, shuffle=False, num_workers=8, pin_memory=True)
+    dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=8, pin_memory=True)
+    validationloader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=8, pin_memory=True)
 
     # Code reference: https://www.codegenes.net/blog/3d-unet-pytorch/
     model = UNet3D(in_channels=1, out_channels=6).to(device)
