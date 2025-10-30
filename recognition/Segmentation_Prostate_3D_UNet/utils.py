@@ -62,6 +62,10 @@ def mean_dice_coefficient(pred, target, num_classes, smooth=1e-6):
         
     return sum(dice_per_class) / len(dice_per_class) if dice_per_class else 0.0
 
+def get_patient_key(filename: str) -> str:
+    """Extracts a unique case-week key from a filename."""
+    match = re.search(r'(Case_\d+)', os.path.basename(filename))
+    return match.group(1)
 
 def create_patient_aware_split(dataset, val_split=0.2):
     """
@@ -70,7 +74,7 @@ def create_patient_aware_split(dataset, val_split=0.2):
     """
 
     all_image_paths = dataset.image_paths
-    patient_ids = [get_case_key(p) for p in all_image_paths]
+    patient_ids = [get_patient_key(p) for p in all_image_paths]
     unique_patients = np.unique(patient_ids)
 
     # Shuffle the unique patient IDs
