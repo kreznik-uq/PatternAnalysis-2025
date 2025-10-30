@@ -18,11 +18,10 @@ def to_channels(arr: np.ndarray, dtype=np.uint8) -> np.ndarray:
 
     return res
 
-def calculate_mean_dice_score(pred_mask, target_one_hot, num_classes, smooth=1e-6):
+def calculate_dice_score(pred_mask, target_one_hot, num_classes, smooth=1e-6):
     """Calculates the mean Dice score, excluding the background class."""
     dice_per_class = []
-    # Start from class 1 to exclude the background
-    for i in range(1, num_classes):
+    for i in range(num_classes):
         pred_class = (pred_mask == i).astype(np.float32)
         target_class = target_one_hot[..., i].astype(np.float32)
 
@@ -32,7 +31,7 @@ def calculate_mean_dice_score(pred_mask, target_one_hot, num_classes, smooth=1e-
         dice = (2. * intersection + smooth) / (union + smooth)
         dice_per_class.append(dice)
 
-    return np.mean(dice_per_class) if dice_per_class else 0.0
+    return dice_per_class
 
 def get_case_key(filename: str) -> str:
     """Extracts a unique case-week key from a filename."""

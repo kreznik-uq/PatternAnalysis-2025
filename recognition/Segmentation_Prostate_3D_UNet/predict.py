@@ -8,7 +8,7 @@ from scipy.ndimage import zoom
 from modules import UNet3D
 from dataset import ProstateDataset
 from torch.amp import autocast
-from utils import get_case_key, to_channels, calculate_mean_dice_score 
+from utils import get_case_key, to_channels, calculate_dice_score 
 
 CONFIG = {
     "MODEL_PATH": "best_model.pth",
@@ -37,7 +37,7 @@ def main():
         image_dir=CONFIG["PROCESSED_IMAGE_DIR"],
         label_dir=CONFIG["PROCESSED_LABEL_DIR"]
     )
-    dice_scores = []
+    dice_scores_per_class = [[] for _ in range(CONFIG["NUM_CLASSES"])]
 
     eval_loader = DataLoader(
         full_dataset,
@@ -45,7 +45,7 @@ def main():
         shuffle=False,
         num_workers=CONFIG["NUM_WORKERS"]
     )
-
+    
     print("started")
     with torch.no_grad():
         for batch in tqdm(eval_loader, desc="Evaluating"):
@@ -88,8 +88,9 @@ def main():
                         
                     original_label_one_hot = to_channels(original_label_mask)
                         
-                    score = calculate_mean_dice_score(full_size_pred_mask, original_label_one_hot, CONFIG["NUM_CLASSES"])
-                    dice_scores.append(score)
+                    scores = calculate_dice_score(full_size_pred_mask, original_label_one_hot, CONFIG["NUM_CLASSES"])
+                    for class_idx, score in enumerate(scores):
+                        dice_scores_per_class[class_idx].append(score)
 
                     # Save the prediction as a NIfTI file
                     pred_nifti = nib.Nifti1Image(full_size_pred_mask, affine=original_nifti.affine, header=original_nifti.header)
@@ -99,11 +100,10 @@ def main():
                     print(f"Warning: Could not find original NIfTI file at {original_nifti_path} to save prediction.")
 
     # Calculate and print the average Dice score and standard deviation
-    avg_dice = np.mean(dice_scores)
-    std_dice = np.std(dice_scores)
-        
-    print(f"Average Dice Score: {avg_dice:.4f}")
-    print(f"Standard Deviation of Dice Scores: {std_dice:.4f}")
+    for i in range(CONFIG["NUM_CLASSES"]):
+        avg_dice = np.mean(dice_scores_per_class[i])
+        std_dice = np.std(dice_scores_per_class[i])
+        print(f"Class {i}: Average Dice = {avg_dice:.4f}, Std Dev = {std_dice:.4f}")
 
 if __name__ == '__main__':
     main()
