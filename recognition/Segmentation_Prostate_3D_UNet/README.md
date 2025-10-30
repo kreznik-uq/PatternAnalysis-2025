@@ -6,6 +6,14 @@ This repository contains a data loading, training, and evaluation script for an 
 
 The general steps of the scripts as as such: the dataset script first runs the preprocess function, which loads each image, resamples it to the target shape of (128, 128, 64), one-hot encoding the labels as well, before converting them to tensors and saving them as .pt files. Then, the training script splits up the dataset based on patients into training and evaluation groups, then uses an improved UNet and a combined loss criterion of entropy and Dice loss to train the model for up to 30 epochs, saving a new model every time an improvement is observed. Finally, the predict script creates and saves prediction masks for a subset of images, then calculates the dice score for each and returns the average in order to validate the accuracy of the model. These images are also saved for manual validation.
 
+## Model
+The model is a 2 layered 3D UNet with each layer being followed by instance normalisation and LeakyReLu activation. Residual connections are also implemented to help prevent vanishing gradients. The model uses 3 encoder and decoder blocks to optimise performance and efficiency.  
+The data flow as defined by the forward method is:  
+- Input 3D tensor passes through the encoders, with the output saved for skip connections
+- The output of the last encoder is fed to the bottleneck
+- The output of the bottleneck is upscampled and concetenated with the output of the last encoder again
+- This is now passed through the decoders, finally producing a segmentation map
+
 ### Usage
 Run the scripts in the following order, allowing them to finish completely. These files must be in the same directory as `utils.py`, `modules.py`, and the `semantic_labels_anon` (labels) and `semantic_MRs_anon` (images) folders.  
 
