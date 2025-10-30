@@ -26,7 +26,9 @@ Below are sample outputs of the model trained for 30 epochs. The final achieved 
 |                | Prediction                            | Ground Truth Label |
 |----------------|---------------------------------------|-------|
 | Case 10 Week 5 | ![case10week5predict](sample_outputs/case10week5predict.png) | ![case10week5label](sample_outputs/case10week5label.png)      |
-| Case 21 Week 2 | ![case21week2predict](sample_outputs/case21week2predict.png) | ![case21week2label](sample_outputs/case21week2label.png) |
+| Case 21 Week 2 | ![case21week2predict](sample_outputs/case21week2predict.png) | ![case21week2label](sample_outputs/case21week2label.png) 
+  
+
 The most notable differences are in areas of fine detail, like the shape of the spine in the first case.
 
 ### Pre-processing
