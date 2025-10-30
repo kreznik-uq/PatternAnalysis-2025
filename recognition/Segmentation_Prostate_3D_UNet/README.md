@@ -27,9 +27,12 @@ Below are sample outputs of the model trained for 30 epochs. The final achieved 
 |----------------|---------------------------------------|-------|
 | Case 10 Week 5 | ![case10week5predict](sample_outputs/case10week5predict.png) | ![case10week5label](sample_outputs/case10week5label.png)      |
 | Case 21 Week 2 | ![case21week2predict](sample_outputs/case21week2predict.png) | ![case21week2label](sample_outputs/case21week2label.png) |
+The most notable differences are in areas of fine detail, like the shape of the spine in the first case.
 
 ### Pre-processing
 Pre-processing is carried out inside the `dataset.py` file. Images and labels ***must*** be pre-processed before `train.py` can be ran. This pre-processing converts the nii.gz format images and labels into PyTorch Tensor .pt files and downsamples them. This has speed advantages when doing more than a single run of `train.py` due to removing the need to process the files while training. This pre-processing also downsamples images by a scale of 0.5, which helps with memory requirements and significantly speeds up training (this can be removed for improved model resolution on higher VRAM GPUs).
+
+The data is split by patient at the training stage into training and validation sets. This is in an effort to prevent overfitting, as randomly splitting the images would have the model train on all patients in the dataset. With this approach, it never sees *any* scans for a few chosen patients, avoiding overfitting.
 
 ### Requirements to run this project via pipreqs:  
 nibabel==5.3.2  
