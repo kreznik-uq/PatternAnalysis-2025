@@ -86,7 +86,7 @@ def main():
                     original_label_nifti = nib.load(original_label_path)
                     original_label_mask = np.round(original_label_nifti.get_fdata()).astype(np.uint8)
                         
-                    original_label_one_hot = to_channels(original_label_mask, num_classes=CONFIG["NUM_CLASSES"])
+                    original_label_one_hot = to_channels(original_label_mask)
                         
                     score = calculate_mean_dice_score(full_size_pred_mask, original_label_one_hot, CONFIG["NUM_CLASSES"])
                     dice_scores.append(score)
